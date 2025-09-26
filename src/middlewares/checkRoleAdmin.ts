@@ -20,13 +20,12 @@ export const checkRoleAdmin = (
   const user = users.find((u: User) => u.username === payload?.username);
 
   // check if user is admin
-  if (!user) {
-    return res.status(401).json({
-      success: false,
-      message: "Unauthorized user",
-    });
-  }
-
+    if (!user || user.role !== "ADMIN") {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized user",
+      });
+    }
   // check if token exists in user.tokens
   if (
     !user.tokens ||

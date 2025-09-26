@@ -8,7 +8,7 @@ import type { User, CustomRequest } from "../libs/types.js";
 
 // import authentication middleware
 import { authenticateToken } from "../middlewares/authenMiddleware.js";
-import { checkRoleAdmin } from "../middlewares/checkRolesMiddleware.js";
+import { checkRoleAdmin } from "../middlewares/checkRoleAdmin.js";
 
 // import database
 import { users, reset_users } from "../db/db.js";
@@ -87,7 +87,7 @@ router.post("/login", (req: Request, res: Response) => {
         role: user.role,
       },
       jwt_secret,
-      { expiresIn: "5m" }
+      { expiresIn: "60m" }
     );
 
     // store the new token in user.tokens
@@ -121,7 +121,6 @@ router.post("/logout", authenticateToken, (req: Request, res: Response) => {
         message: "User not found",
       });
     }
-
     // check if token exists in user.tokens
     if (!user.tokens || !user.tokens.includes(token)) {
       return res.status(401).json({

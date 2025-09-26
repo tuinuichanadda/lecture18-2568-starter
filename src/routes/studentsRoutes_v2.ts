@@ -5,78 +5,104 @@ import {
   zStudentId,
 } from "../libs/zodValidators.js";
 
-import type { Student, Course } from "../libs/types.js";
+import type { Student, Course, CustomRequest } from "../libs/types.js";
 
 // import database
 import { students, courses } from "../db/db.js";
+import { checkRoleAdmin } from "../middlewares/checkRoleAdmin.js";
+import { authenticateToken } from "../middlewares/authenMiddleware.js";
 
 const router = Router();
 
 // GET /api/v2/students
 // get students (by program)
-router.get("/", (req: Request, res: Response) => {
-  try {
-    const program = req.query.program;
+router.get(
+  "/",
+  authenticateToken,
+  checkRoleAdmin,
+  (req: Request, res: Response) => {
+    try {
+      // get payload and token from (custom) request
+      const payload = (req as CustomRequest).user;
 
-    if (program) {
-      let filtered_students = students.filter(
-        (student) => student.program === program
-      );
-      return res.status(200).json({
-        success: true,
-        data: filtered_students,
-      });
-    } else {
-      return res.status(200).json({
-        success: true,
-        data: students,
+      const program = req.query.program;
+
+      if (program) {
+        let filtered_students = students.filter(
+          (student) => student.program === program
+        );
+        return res.status(200).json({
+          success: true,
+          data: filtered_students,
+        });
+      } else {
+        return res.status(200).json({
+          success: true,
+          data: students,
+        });
+      }
+    } catch (err) {
+      return res.status(500).json({
+        success: false,
+        message: "Something is wrong, please try again",
+        error: err,
       });
     }
-  } catch (err) {
-    return res.status(500).json({
-      success: false,
-      message: "Something is wrong, please try again",
-      error: err,
-    });
   }
-});
+);
 
 // GET /api/v2/students/{studentId}
-router.get("/:studentId", (req: Request, res: Response) => {
-  try {
-    const studentId = req.params.studentId;
-    const result = zStudentId.safeParse(studentId);
+router.get(
+  "/:studentId",
+  authenticateToken,
+  checkRoleAdmin,
+  (req: Request, res: Response) => {
+    try {
+      // get payload and token from (custom) request
+      const payload = (req as CustomRequest).user;
 
-    if (!result.success) {
-      return res.status(400).json({
-        message: "Validation failed",
-        errors: result.error.issues[0]?.message,
+      const studentId = req.params.studentId;
+      const result = zStudentId.safeParse(studentId);
+
+      if (!result.success) {
+        return res.status(400).json({
+          message: "Validation failed",
+          errors: result.error.issues[0]?.message,
+        });
+      }
+
+      // if role is STUDENT, can only access their own data
+      if (payload?.role === "STUDENT" && payload?.studentId !== studentId) {
+        return res.status(403).json({
+          success: false,
+          message: "Forbidden access",
+        });
+      }
+
+      const foundIndex = students.findIndex(
+        (std: Student) => std.studentId === studentId
+      );
+
+      if (foundIndex === -1) {
+        return res.status(404).json({
+          success: false,
+          message: "Student does not exists",
+        });
+      }
+
+      res.json({
+        success: true,
+        data: students[foundIndex],
       });
-    }
-
-    const foundIndex = students.findIndex(
-      (std: Student) => std.studentId === studentId
-    );
-
-    if (foundIndex === -1) {
-      return res.status(404).json({
+    } catch (err) {
+      return res.status(500).json({
         success: false,
-        message: "Student does not exists",
+        message: "Something is wrong, please try again",
+        error: err,
       });
     }
-
-    res.json({
-      success: true,
-      data: students[foundIndex],
-    });
-  } catch (err) {
-    return res.status(500).json({
-      success: false,
-      message: "Something is wrong, please try again",
-      error: err,
-    });
   }
-});
+);
 
 // POST /api/v2/students, body = {new student data}
 // add a new student
